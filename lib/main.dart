@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:remotely_mobile/data_channel_sample.dart';
-import 'package:remotely_mobile/get_display_media_sample.dart';
-import 'package:remotely_mobile/loopback_sample.dart';
+import 'package:remotely_mobile/consts/consts.dart';
+import 'package:remotely_mobile/views/loginregister/login_page.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,57 +12,20 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
+          primaryColor: Color(0xFFE3562A),
+          colorScheme: ColorScheme.light(onPrimary: Colors.white),
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          buttonTheme: ButtonThemeData(
+            buttonColor: Color(0xFFE3562A),
+            //buttonColor: Color(0xE3562A),
+          )),
       //home: DataChannelSample(),
-      home: LoopBackSample(),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-  final String title;
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ),
+      //home: LoopBackSample(),
+      initialRoute: Routes.LoginRegisterRoute,
+      routes: {
+        Routes.LoginRegisterRoute: (context) => LoginRegisterPage(),
+      },
     );
   }
 }
