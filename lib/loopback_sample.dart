@@ -5,55 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:remotely_mobile/util.dart';
 
-class WebRTCController {
-  _MyAppState state;
-  bool inCalling = false;
-
-  void makeCall() {
-    _checkStateIsNull();
-    state._makeCall2();
-  }
-
-  void hangUp() {
-    _checkStateIsNull();
-    state._hangUp();
-  }
-
-  void _checkStateIsNull() {
-    if (state == null) {
-      throw new Exception("State cannot be null!");
-    }
-  }
-}
-
-class LoopBackSample extends StatefulWidget {
+class LoopBackSampleBackup extends StatefulWidget {
   static String tag = 'loopback_sample';
 
-  final WebRTCController controller;
-
-  LoopBackSample({this.controller});
-
   @override
-  _MyAppState createState() {
-    final state = _MyAppState(controller);
-    return state;
-  }
+  _MyAppStateBackup createState() => _MyAppStateBackup();
 }
 
-class _MyAppState extends State<LoopBackSample> {
+class _MyAppStateBackup extends State<LoopBackSampleBackup> {
   MediaStream _localStream;
   RTCPeerConnection _peerConnection;
   final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
-  WebRTCController controller;
+  bool _inCalling = false;
   Timer _timer;
-
-  _MyAppState(this.controller) {
-    if (controller == null) {
-      controller = WebRTCController();
-    }
-    controller.state = this;
-  }
 
   String get sdpSemantics =>
       WebRTC.platformIsWindows ? 'plan-b' : 'unified-plan';
@@ -67,7 +32,7 @@ class _MyAppState extends State<LoopBackSample> {
   @override
   void deactivate() {
     super.deactivate();
-    if (controller.inCalling) {
+    if (_inCalling) {
       _hangUp();
     }
     _localRenderer.dispose();
@@ -213,7 +178,7 @@ class _MyAppState extends State<LoopBackSample> {
     await _peerConnection.setLocalDescription(description);
 
     //change for loopback.
-    final sdp = await getRemoteSdp(description);
+    final sdp = await getRemoteSdp("0", description);
     description.type = 'answer';
     description.sdp = sdp.sdp;
     _peerConnection.setRemoteDescription(description);
@@ -221,7 +186,7 @@ class _MyAppState extends State<LoopBackSample> {
     if (!mounted) return;
 
     setState(() {
-      controller.inCalling = true;
+      _inCalling = true;
     });
   }
 
@@ -369,7 +334,7 @@ class _MyAppState extends State<LoopBackSample> {
     await _peerConnection.setLocalDescription(description);
 
     //change for loopback.
-    final sdp = await getRemoteSdp(description);
+    final sdp = await getRemoteSdp("0", description);
     description.type = 'answer';
     description.sdp = sdp.sdp;
     _peerConnection.setRemoteDescription(description);
@@ -396,7 +361,7 @@ class _MyAppState extends State<LoopBackSample> {
     _timer = Timer.periodic(Duration(seconds: 1), handleStatsReport);
 
     setState(() {
-      controller.inCalling = true;
+      _inCalling = true;
     });
   }
 
@@ -411,7 +376,7 @@ class _MyAppState extends State<LoopBackSample> {
       print(e.toString());
     }
     setState(() {
-      controller.inCalling = false;
+      _inCalling = false;
     });
     _timer.cancel();
   }
@@ -432,9 +397,6 @@ class _MyAppState extends State<LoopBackSample> {
         child: RTCVideoView(_remoteRenderer),
       )
     ];
-
-    return RTCVideoView(_remoteRenderer);
-    /*
     return Scaffold(
       appBar: AppBar(
         title: Text('LoopBack example'),
@@ -468,6 +430,6 @@ class _MyAppState extends State<LoopBackSample> {
         tooltip: _inCalling ? 'Hangup' : 'Call',
         child: Icon(_inCalling ? Icons.call_end : Icons.phone),
       ),
-    );*/
+    );
   }
 }

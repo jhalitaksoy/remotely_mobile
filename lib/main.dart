@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:remotely_mobile/consts/consts.dart';
 import 'package:remotely_mobile/context/context.dart';
+import 'package:remotely_mobile/loopback_sample.dart';
 import 'package:remotely_mobile/views/home_page.dart';
 import 'package:remotely_mobile/views/loading_page.dart';
 import 'package:remotely_mobile/views/loginregister/login_page.dart';
@@ -49,6 +50,7 @@ class _MyAppState extends State<MyApp> {
         Routes.LoginRegisterRoute: (context) => LoginRegisterPage(),
         Routes.HomeRoute: (context) => HomePage(),
         Routes.LoadingRoute: (context) => LoadingPage(),
+        Routes.RoomRoute: (context) => LoopBackSampleBackup(),
       },
     );
   }

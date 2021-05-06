@@ -130,7 +130,7 @@ class _DataChannelSampleState extends State<DataChannelSample> {
 
     _sdp = description.sdp;
     //change for loopback.
-    final sdp = await getRemoteSdp(description);
+    final sdp = await getRemoteSdp("0", description);
     description.type = 'answer';
     description.sdp = sdp.sdp;
     _peerConnection.setRemoteDescription(description);

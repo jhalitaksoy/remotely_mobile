@@ -1,4 +1,6 @@
 import 'package:http/http.dart';
+import 'package:remotely_mobile/rtmt/rtmt.dart';
+import 'package:remotely_mobile/rtmt/rtmt_datachannel.dart';
 import 'package:remotely_mobile/service/auth_service.dart';
 import 'package:remotely_mobile/service/http_service.dart';
 import 'package:remotely_mobile/service/room_service.dart';
@@ -13,7 +15,10 @@ class Context {
   AuthService authService;
   bool hasJwtKey = false;
   RoomService roomService;
-  Context(this.jwtStore, this.authService, this.hasJwtKey, this.roomService);
+  RealtimeMessageTransport rtmt;
+  HttpService httpService;
+  Context(this.httpService, this.jwtStore, this.authService, this.hasJwtKey,
+      this.roomService, this.rtmt);
 }
 
 Context createTestContext() {
@@ -28,7 +33,9 @@ Context createTestContext() {
 
   final authService = AuthServiceImpl(httpService, jwtStore);
   final roomService = RoomServiceImpl(httpService);
-  return Context(jwtStore, authService, false, roomService);
+  final rtmt = RealtimeMessageTransportDataChannel();
+
+  return Context(httpService, jwtStore, authService, false, roomService, rtmt);
 }
 
 Future<Context> createContext(Function(Response) onUnauthorized) async {
@@ -53,5 +60,7 @@ Future<Context> createContext(Function(Response) onUnauthorized) async {
 
   final authService = AuthServiceImpl(httpService, jwtStore);
   final roomService = RoomServiceImpl(httpService);
-  return Context(jwtStore, authService, jwt != null, roomService);
+  final rtmt = RealtimeMessageTransportDataChannel();
+  return Context(
+      httpService, jwtStore, authService, jwt != null, roomService, rtmt);
 }

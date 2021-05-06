@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
+import 'package:remotely_mobile/main.dart';
 
-Future<RTCSessionDescription> getRemoteSdp(RTCSessionDescription sd) async {
-  final String user_id = "0";
-  final String room_id = "0";
+Future<RTCSessionDescription> getRemoteSdp(
+    String roomID, RTCSessionDescription sd) async {
+  final String room_id = "10";
 
   final body = {
     "sd": {
@@ -15,9 +16,8 @@ Future<RTCSessionDescription> getRemoteSdp(RTCSessionDescription sd) async {
     "name": "Client"
   };
 
-  var url = 'http://10.0.2.2/stream/sdp/' + room_id;
-  var response = await http
-      .post(url, body: json.encode(body), headers: {'userID': user_id});
+  var url = 'stream_private/sdp/' + room_id;
+  var response = await myContext.httpService.post(url, body);
   print('Response status: ${response.statusCode}');
   print('Response body: ${response.body}');
 

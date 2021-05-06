@@ -1,6 +1,14 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:remotely_mobile/loopback_sample.dart';
+import 'package:remotely_mobile/loopback_samplereal_real.dart';
+import 'package:remotely_mobile/main.dart';
 import 'package:remotely_mobile/models/room.dart';
+import 'package:remotely_mobile/models/room_chat.dart';
+import 'package:remotely_mobile/rtmt/message_encode_decode.dart';
+
+const CHANNEL_CHAT = "chat";
 
 class RoomPage extends StatefulWidget {
   final Room room;
@@ -17,12 +25,34 @@ class _RoomPageState extends State<RoomPage> {
   Size get _size => MediaQuery.of(context).size;
   WebRTCController controller = WebRTCController();
 
+  List<ChatMessage> chatMessages = List<ChatMessage>();
+
+  TextEditingController chatTextController = TextEditingController();
+
   _RoomPageState(this.room);
 
   @override
   void initState() {
     //controller.makeCall();
+    myContext.rtmt.listen(CHANNEL_CHAT, onChatMessage);
     super.initState();
+  }
+
+  void onChatMessage(Uint8List data) {
+    final chatMessageStr = bytesToString(data);
+    final chatMessage = ChatMessage.fromJson(jsonDecode(chatMessageStr));
+    chatMessages.add(chatMessage);
+    setState(() {
+      chatMessages = chatMessages;
+    });
+  }
+
+  void sendChatMessage() {
+    final text = chatTextController.text;
+    chatTextController.clear();
+    final chatMessage = ChatMessage(text: text);
+    final json = jsonEncode(chatMessage);
+    myContext.rtmt.send(CHANNEL_CHAT, stringToBytes(json));
   }
 
   @override
@@ -36,7 +66,8 @@ class _RoomPageState extends State<RoomPage> {
         body: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(flex: 2, child: LoopBackSample(controller: controller)),
+            Flexible(
+                flex: 2, child: LoopBackSample(room, controller: controller)),
             Flexible(flex: 4, child: buildChatView()),
           ],
         ),
@@ -53,7 +84,7 @@ class _RoomPageState extends State<RoomPage> {
         child: Column(
           children: [
             Flexible(
-              flex: 1,
+              fit: FlexFit.tight,
               child: Align(
                   alignment: Alignment.topLeft,
                   child: Text(
@@ -63,7 +94,24 @@ class _RoomPageState extends State<RoomPage> {
             ),
             Expanded(
               flex: 5,
-              child: Container(),
+              child: Container(
+                child: ListView.builder(
+                  itemCount: chatMessages.length,
+                  itemBuilder: (context, index) {
+                    final chatMessage = chatMessages[index];
+                    return Row(
+                      children: [
+                        Text(
+                          chatMessage.user.name,
+                          style: _theme.textTheme.bodyText1,
+                        ),
+                        SizedBox(width: _size.width * 0.01),
+                        Text(chatMessage.text),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
             Expanded(
               flex: 1,
@@ -72,14 +120,15 @@ class _RoomPageState extends State<RoomPage> {
                   Expanded(
                     flex: 9,
                     child: TextFormField(
+                      controller: chatTextController,
                       decoration: InputDecoration(hintText: "Your Message"),
                     ),
                   ),
                   Flexible(
                       flex: 1,
                       fit: FlexFit.tight,
-                      child:
-                          IconButton(icon: Icon(Icons.send), onPressed: null))
+                      child: IconButton(
+                          icon: Icon(Icons.send), onPressed: sendChatMessage))
                 ],
               ),
             ),
