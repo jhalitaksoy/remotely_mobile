@@ -8,10 +8,10 @@ class Routes {
   static const RoomRoute = "room";
   static const LoadingRoute = "loading";
 
-  static void navigateRoompage(BuildContext context, Room room) {
+  static void navigateRoompage(BuildContext context, int roomID) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => RoomPage(room),
+        builder: (context) => RoomPage(roomID),
       ),
     );
   }

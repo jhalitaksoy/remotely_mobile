@@ -11,15 +11,18 @@ import 'package:remotely_mobile/rtmt/message_encode_decode.dart';
 const CHANNEL_CHAT = "chat";
 
 class RoomPage extends StatefulWidget {
-  final Room room;
+  final int roomID;
 
-  RoomPage(this.room);
+  RoomPage(this.roomID);
   @override
-  _RoomPageState createState() => _RoomPageState(room);
+  _RoomPageState createState() => _RoomPageState(this.roomID);
 }
 
 class _RoomPageState extends State<RoomPage> {
-  final Room room;
+  final int roomID;
+
+  Room room;
+
   ThemeData get _theme => Theme.of(context);
 
   Size get _size => MediaQuery.of(context).size;
@@ -29,12 +32,17 @@ class _RoomPageState extends State<RoomPage> {
 
   TextEditingController chatTextController = TextEditingController();
 
-  _RoomPageState(this.room);
+  Future<Room> roomFuture;
+  Future<List<ChatMessage>> chatFuture;
+
+  _RoomPageState(this.roomID);
 
   @override
   void initState() {
     //controller.makeCall();
     myContext.rtmt.listen(CHANNEL_CHAT, onChatMessage);
+    roomFuture = myContext.roomService.getRoomById(this.roomID);
+    chatFuture = myContext.roomService.getRoomChatMessagesById(this.roomID);
     super.initState();
   }
 
@@ -58,22 +66,48 @@ class _RoomPageState extends State<RoomPage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(room.name),
-          actions: [buildmakeCallButton()],
-        ),
-        body: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-                flex: 2, child: LoopBackSample(room, controller: controller)),
-            Flexible(flex: 4, child: buildChatView()),
-          ],
-        ),
-        //floatingActionButton: buildFloatingActionButton(),
-      ),
+        child: FutureBuilder<Room>(
+      future: roomFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          room = snapshot.data;
+        }
+        return Scaffold(
+          appBar: buildAppBar(),
+          body: buildBody(snapshot),
+        );
+      },
+    ));
+  }
+
+  AppBar buildAppBar() {
+    return AppBar(
+      title: Text(room == null ? "" : room.name),
+      actions: [
+        buildMakeCallButton(),
+      ],
     );
+  }
+
+  Widget buildBody(AsyncSnapshot<Room> snapshot) {
+    if (snapshot.hasError) {
+      return Center(child: Text(snapshot.error));
+    }
+
+    if (snapshot.hasData) {
+      room = snapshot.data;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            flex: 2,
+            child: LoopBackSample(snapshot.data, controller: controller),
+          ),
+          Flexible(flex: 4, child: buildChatView()),
+        ],
+      );
+    }
+    return Center(child: CircularProgressIndicator());
   }
 
   Card buildChatView() {
@@ -95,20 +129,19 @@ class _RoomPageState extends State<RoomPage> {
             Expanded(
               flex: 5,
               child: Container(
-                child: ListView.builder(
-                  itemCount: chatMessages.length,
-                  itemBuilder: (context, index) {
-                    final chatMessage = chatMessages[index];
-                    return Row(
-                      children: [
-                        Text(
-                          chatMessage.user.name,
-                          style: _theme.textTheme.bodyText1,
-                        ),
-                        SizedBox(width: _size.width * 0.01),
-                        Text(chatMessage.text),
-                      ],
-                    );
+                child: FutureBuilder<List<ChatMessage>>(
+                  future: chatFuture,
+                  builder: (context, snapshot) {
+                    chatMessages = snapshot.data;
+                    if (snapshot.hasData) {
+                      return buildChatListView();
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text(snapshot.error));
+                    }
+
+                    return Center(child: CircularProgressIndicator());
                   },
                 ),
               ),
@@ -138,6 +171,25 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
+  ListView buildChatListView() {
+    return ListView.builder(
+      itemCount: chatMessages.length,
+      itemBuilder: (context, index) {
+        final chatMessage = chatMessages[index];
+        return Row(
+          children: [
+            Text(
+              chatMessage.user.name,
+              style: _theme.textTheme.bodyText1,
+            ),
+            SizedBox(width: _size.width * 0.01),
+            Text(chatMessage.text),
+          ],
+        );
+      },
+    );
+  }
+
   FloatingActionButton buildFloatingActionButton() {
     return FloatingActionButton(
       onPressed: controller.inCalling ? controller.hangUp : controller.makeCall,
@@ -146,7 +198,7 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
-  IconButton buildmakeCallButton() {
+  IconButton buildMakeCallButton() {
     return IconButton(
       onPressed: controller.inCalling ? controller.hangUp : controller.makeCall,
       tooltip: controller.inCalling ? 'Hangup' : 'Call',

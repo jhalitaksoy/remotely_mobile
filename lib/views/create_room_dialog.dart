@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-class CreateRoomDialog extends StatefulWidget {
-  final Function(String projectName) onCreateProject;
+class EnterValueDialog extends StatefulWidget {
+  final String title;
+  final String hint;
+  final String cancelText;
+  final String okText;
+
+  final Function(String text) onValueEnter;
 
   final Function() onCancel;
 
-  const CreateRoomDialog({Key key, this.onCreateProject, this.onCancel})
+  const EnterValueDialog(
+      {Key key,
+      @required this.title,
+      @required this.hint,
+      this.okText = "Tamamla",
+      this.cancelText = "İptal",
+      @required this.onValueEnter,
+      @required this.onCancel})
       : super(key: key);
 
   @override
-  _CreateRoomDialogState createState() => _CreateRoomDialogState();
+  _EnterValueDialogState createState() => _EnterValueDialogState();
 }
 
-class _CreateRoomDialogState extends State<CreateRoomDialog> {
+class _EnterValueDialogState extends State<EnterValueDialog> {
   String projeName;
 
   @override
@@ -36,12 +48,11 @@ class _CreateRoomDialogState extends State<CreateRoomDialog> {
 
   Form buildForm(BuildContext context) {
     return Form(
-      autovalidate: true,
       child: Column(
         children: <Widget>[
           buildTittle(),
           SizedBox(height: 20),
-          buildProjectName(),
+          buildTextField(),
           SizedBox(height: 10),
           buildBottomButtons(context),
         ],
@@ -49,57 +60,64 @@ class _CreateRoomDialogState extends State<CreateRoomDialog> {
     );
   }
 
-  Row buildBottomButtons(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: <Widget>[
-        buildRaisedButton("İptal", widget.onCancel, color: Colors.grey),
-        buildRaisedButton("Oluştur", () {
-          widget.onCreateProject(projeName);
-        }, color: Theme.of(context).primaryColor),
-      ],
-    );
-  }
-
-  TextFormField buildProjectName() {
-    return TextFormField(
-      validator: (value) {
-        if (value.isEmpty) {
-          return "Room name cannot be empty!";
-        }
-        return null;
-      },
-      onChanged: (value) => projeName = value,
-      decoration: InputDecoration(
-          labelText: "Room name",
-          contentPadding: EdgeInsets.only(left: 10),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-    );
-  }
-
-  RaisedButton buildRaisedButton(String text, Function() onClick,
-      {Color color = Colors.blue, Color textColor = Colors.white}) {
-    return RaisedButton(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        color: color,
-        child: Text(
-          text,
-          style: TextStyle(color: textColor),
-        ),
-        onPressed: onClick);
-  }
-
   Widget buildTittle() {
     return Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        "Create Room",
+        widget.title,
         style: TextStyle(
           fontSize: 20,
           color: Colors.black87,
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  TextFormField buildTextField() {
+    return TextFormField(
+      validator: (value) {
+        if (value.isEmpty) {
+          return "This field cannot be empty!";
+        }
+        return null;
+      },
+      onChanged: (value) => projeName = value,
+      decoration: InputDecoration(
+          labelText: widget.hint,
+          contentPadding: EdgeInsets.only(left: 10),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+    );
+  }
+
+  Widget buildBottomButtons(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        buildRaisedButton(
+          widget.cancelText,
+          widget.onCancel,
+          color: Colors.grey,
+        ),
+        buildRaisedButton(
+          widget.okText,
+          () => widget.onValueEnter(projeName),
+          color: Theme.of(context).primaryColor,
+        ),
+      ],
+    );
+  }
+
+  ElevatedButton buildRaisedButton(
+    String text,
+    Function() onClick, {
+    Color color = Colors.blue,
+    Color textColor = Colors.white,
+  }) {
+    return ElevatedButton(
+      style: ButtonStyle(),
+      child: Text(text, style: TextStyle(color: textColor)),
+      onPressed: onClick,
     );
   }
 }

@@ -1,7 +1,7 @@
 class Room {
   int id;
   String name;
-  Room(this.name);
+  Room(this.id, this.name);
 
   Room.fromJson(Map<String, dynamic> json) {
     name = json['Name']; //todo look later

@@ -22,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
   bool showCreateRoomDialog = false;
+  bool showJoinRoomDialog = false;
 
   void onCreateRoom() async {
     setState(() {
@@ -35,13 +36,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   void onRoomSelected(Room room) {
-    Routes.navigateRoompage(context, room);
+    Routes.navigateRoompage(context, room.id);
   }
 
   void onProfileButtonPress() {
     myContext.jwtStore.delete();
     myContext.hasJwtKey = false;
     Navigator.of(context).pushReplacementNamed(Routes.LoginRegisterRoute);
+  }
+
+  void onJoinRoomButtonPress() {
+    setState(() {
+      showJoinRoomDialog = true;
+    });
   }
 
   @override
@@ -55,10 +62,35 @@ class _HomePageState extends State<HomePage> {
     return SafeArea(
       child: Scaffold(
         key: _scaffoldKey,
-        body: buildBody(),
         appBar: buildAppBar(),
+        body: buildBody(),
         floatingActionButton: buildFloatingActionButton(),
       ),
+    );
+  }
+
+  AppBar buildAppBar() {
+    return AppBar(
+      title: Text("HomePage"),
+      actions: [
+        buildJoinRoomButton(),
+        buildProfileButton(),
+      ],
+    );
+  }
+
+  IconButton buildProfileButton() {
+    return IconButton(
+      icon: Icon(Icons.account_circle_rounded),
+      onPressed: onProfileButtonPress,
+    );
+  }
+
+  IconButton buildJoinRoomButton() {
+    return IconButton(
+      onPressed: onJoinRoomButtonPress,
+      tooltip: 'Join',
+      icon: Icon(Icons.add),
     );
   }
 
@@ -71,7 +103,10 @@ class _HomePageState extends State<HomePage> {
             Flexible(child: buildYourRoomsCard()),
           ],
         ),
-        if (showCreateRoomDialog) buildCreateRoomDialog()
+        if (showCreateRoomDialog)
+          buildCreateRoomDialog()
+        else if (showJoinRoomDialog)
+          buildJoinRoomDialog()
       ],
     );
   }
@@ -163,18 +198,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  AppBar buildAppBar() {
-    return AppBar(
-      title: Text("HomePage"),
-      actions: [
-        IconButton(
-          icon: Icon(Icons.account_circle_rounded),
-          onPressed: onProfileButtonPress,
-        )
-      ],
-    );
-  }
-
   FloatingActionButton buildFloatingActionButton() {
     return FloatingActionButton(
       child: Icon(
@@ -191,29 +214,68 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          CreateRoomDialog(
-            onCreateProject: (projectName) async {
-              try {
-                final result =
-                    await myContext.roomService.createRoom(Room(projectName));
-                if (result) {
-                  showInSnackBar("Created Succesfully");
-                  setState(() {
-                    futureRooms = myContext.roomService.listRooms();
-                    showCreateRoomDialog = false;
-                  });
-                } else {
-                  showInSnackBar("Internal Error");
-                }
-              } catch (e) {
-                print(e);
-                showInSnackBar(e.toString());
+          EnterValueDialog(
+            title: "Create Room",
+            hint: "Room Name",
+            onValueEnter: onRoomCreate,
+            onCancel: () {
+              setState(
+                () {
+                  showCreateRoomDialog = false;
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  onRoomCreate(String roomName) async {
+    try {
+      final result = await myContext.roomService.createRoom(Room(-1, roomName));
+      if (result) {
+        showInSnackBar("Created Succesfully");
+        setState(() {
+          futureRooms = myContext.roomService.listRooms();
+          showCreateRoomDialog = false;
+        });
+      } else {
+        showInSnackBar("Internal Error");
+      }
+    } catch (e) {
+      print(e);
+      showInSnackBar(e.toString());
+    }
+  }
+
+  Widget buildJoinRoomDialog() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          EnterValueDialog(
+            title: "Join Room",
+            hint: "Room ID",
+            onValueEnter: (roomIDStr) async {
+              final roomID = int.tryParse(roomIDStr);
+              if (roomID == null) {
+                showInSnackBar("Room ID is not a number");
+                return;
               }
+              Routes.navigateRoompage(context, roomID);
+              setState(
+                () {
+                  showJoinRoomDialog = false;
+                },
+              );
             },
             onCancel: () {
-              setState(() {
-                showCreateRoomDialog = false;
-              });
+              setState(
+                () {
+                  showJoinRoomDialog = false;
+                },
+              );
             },
           ),
         ],

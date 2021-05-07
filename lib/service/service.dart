@@ -1,6 +1,7 @@
 import 'package:http/http.dart';
 import 'package:remotely_mobile/models/auth.dart';
 import 'package:remotely_mobile/models/room.dart';
+import 'package:remotely_mobile/models/room_chat.dart';
 import 'package:remotely_mobile/store/store.dart';
 
 abstract class HttpService {
@@ -24,4 +25,8 @@ abstract class RoomService {
   Future<bool> createRoom(Room room);
 
   Future<List<Room>> listRooms();
+
+  Future<Room> getRoomById(int id);
+
+  Future<List<ChatMessage>> getRoomChatMessagesById(int id);
 }
