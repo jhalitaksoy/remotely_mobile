@@ -9,6 +9,8 @@ import 'package:remotely_mobile/models/room.dart';
 import 'package:remotely_mobile/models/room_chat.dart';
 import 'package:remotely_mobile/models/survey.dart';
 import 'package:remotely_mobile/rtmt/message_encode_decode.dart';
+import 'package:remotely_mobile/rtmt/rtmt.dart';
+import 'package:remotely_mobile/rtmt/rtmt_websocket.dart';
 import 'package:remotely_mobile/views/create_survey_dialog.dart';
 
 const CHANNEL_CHAT = "chat";
@@ -60,11 +62,21 @@ class _RoomPageState extends State<RoomPage> {
   @override
   void initState() {
     //controller.makeCall();
-    myContext.rtmt.listen(CHANNEL_CHAT, onChatMessage);
-    myContext.rtmt.listen(ChannelSurveyCreate, onSurveyCreate);
-    myContext.rtmt.listen(ChannelSurveyDestroy, onSurveyDestroy);
-    roomFuture = myContext.roomService.getRoomById(this.roomID);
-    chatFuture = myContext.roomService.getRoomChatMessagesById(this.roomID);
+    var rtmt = myContext.rtmt;
+    if (rtmt is RealtimeMessageTransportWS) {
+      myContext.jwtStore.get().then((jwt) {
+        myContext.roomService.joinRoom(this.roomID).then((value) {
+          rtmt.init(this.roomID.toString(), jwt.toString());
+        });
+      });
+
+      myContext.rtmt.listen(CHANNEL_CHAT, onChatMessage);
+      myContext.rtmt.listen(ChannelSurveyCreate, onSurveyCreate);
+      myContext.rtmt.listen(ChannelSurveyDestroy, onSurveyDestroy);
+      roomFuture = myContext.roomService.getRoomById(this.roomID);
+      chatFuture = myContext.roomService.getRoomChatMessagesById(this.roomID);
+    }
+
     super.initState();
   }
 
