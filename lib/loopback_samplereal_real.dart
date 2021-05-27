@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:core';
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,7 @@ class WebRTCController {
   void makeCall() {
     _checkStateIsNull();
     try {
-      state._makeCall();
+      //state._makeCall();
     } catch (e) {
       print(e);
     }
@@ -25,7 +26,7 @@ class WebRTCController {
 
   void hangUp() {
     _checkStateIsNull();
-    state._hangUp();
+    //state._hangUp();
   }
 
   void _checkStateIsNull() {
@@ -54,20 +55,18 @@ class LoopBackSample extends StatefulWidget {
   }
 }
 
+const ChannelSDPAnswer = "sdp_answer";
+const ChannelSDPOffer = "sdp_offer";
+const ChannelICE = "ice";
+const ChannelReady = "ready";
+
 class _MyAppState extends State<LoopBackSample> {
-  MediaStream _localStream;
-
-  RTCPeerConnection _peerConnection;
-
-  final _localRenderer = RTCVideoRenderer();
-
-  final _remoteRenderer = RTCVideoRenderer();
-
   WebRTCController controller;
 
-  Timer _timer;
+  final _localRenderer = RTCVideoRenderer();
+  List _remoteRenderers = [];
 
-  List<String> logs = List<String>();
+  RTCPeerConnection _peerConnection;
 
   _MyAppState(this.controller) {
     if (controller == null) {
@@ -75,40 +74,109 @@ class _MyAppState extends State<LoopBackSample> {
     }
     controller.state = this;
   }
-
-  String get sdpSemantics =>
-      WebRTC.platformIsWindows ? 'plan-b' : 'unified-plan';
-
   @override
   void initState() {
     super.initState();
-    initRenderers();
+    connect();
   }
 
-  @override
-  void deactivate() {
-    super.deactivate();
-    if (controller.inCalling) {
-      _hangUp();
-    }
-    _localRenderer.dispose();
-    _remoteRenderer.dispose();
-  }
+  Future<void> connect() async {
+    _peerConnection =
+        await createPeerConnection({"sdpSemantics": 'unified-plan'}, {});
 
-  void initRenderers() async {
     await _localRenderer.initialize();
-    await _remoteRenderer.initialize();
-  }
+    var localStream = await navigator.mediaDevices
+        .getUserMedia({'audio': true, 'video': false});
+    _localRenderer.srcObject = localStream;
 
-  void handleStatsReport(Timer timer) async {
-    if (_peerConnection != null) {}
+    localStream.getTracks().forEach((track) async {
+      await _peerConnection.addTrack(track, localStream);
+    });
+
+    _peerConnection.onIceCandidate = (candidate) async {
+      if (candidate == null) {
+        return;
+      }
+
+      final json = JsonEncoder().convert({
+        'sdpMLineIndex': candidate.sdpMlineIndex,
+        'sdpMid': candidate.sdpMid,
+        'candidate': candidate.candidate,
+      });
+
+      myContext.rtmt.send(ChannelICE, stringToBytes(json));
+    };
+
+    _peerConnection.onTrack = (event) async {
+      if (event.track.kind == 'video' && event.streams.isNotEmpty) {
+        var renderer = RTCVideoRenderer();
+        await renderer.initialize();
+        renderer.srcObject = event.streams[0];
+
+        setState(() {
+          _remoteRenderers.add(renderer);
+        });
+      }
+    };
+
+    _peerConnection.onRemoveStream = (stream) {
+      var rendererToRemove;
+      var newRenderList = [];
+
+      // Filter existing renderers for the stream that has been stopped
+      _remoteRenderers.forEach((r) {
+        if (r.srcObject.id == stream.id) {
+          rendererToRemove = r;
+        } else {
+          newRenderList.add(r);
+        }
+      });
+
+      // Set the new renderer list
+      setState(() {
+        _remoteRenderers = newRenderList;
+      });
+
+      // Dispose the renderer we are done with
+      if (rendererToRemove != null) {
+        rendererToRemove.dispose();
+      }
+    };
+
+    myContext.rtmt.listen(ChannelSDPAnswer, (message) async {
+      final sdpText = bytesToString(message);
+      final answer = jsonDecode(sdpText);
+      await _peerConnection.setRemoteDescription(
+          RTCSessionDescription(answer['sdp'], answer['type']));
+    });
+
+    myContext.rtmt.listen(ChannelSDPOffer, (message) async {
+      final sdpText = bytesToString(message);
+      final offer = jsonDecode(sdpText);
+      print(offer);
+      await _peerConnection.setRemoteDescription(
+          RTCSessionDescription(offer['sdp'], offer['type']));
+      RTCSessionDescription answer = await _peerConnection.createAnswer({});
+      await _peerConnection.setLocalDescription(answer);
+      final json = jsonEncode({
+        "sdp": offer.sdp,
+        "type": offer.type,
+      });
+
+      myContext.rtmt.send(ChannelSDPAnswer, stringToBytes(json));
+    });
+    myContext.rtmt.send(ChannelReady, stringToBytes("ready"));
+
+    myContext.rtmt.listen(ChannelICE, (message) async {
+      final jsonText = bytesToString(message);
+      final json = jsonDecode(jsonText);
+
+      _peerConnection.addCandidate(RTCIceCandidate(json['candidate'], null, 0));
+    });
   }
 
   void _print(Object object) {
-    logs.add(object.toString());
-    setState(() {
-      logs = logs;
-    });
+    print(object);
   }
 
   void _onSignalingState(RTCSignalingState state) {
@@ -127,198 +195,21 @@ class _MyAppState extends State<LoopBackSample> {
     _print(state);
   }
 
-  void _onAddStream(MediaStream stream) {
-    _print('New stream: ' + stream.id);
-    _remoteRenderer.srcObject = stream;
-  }
-
-  void _onRemoveStream(MediaStream stream) {
-    _remoteRenderer.srcObject = null;
-  }
-
-  void _onCandidate(RTCIceCandidate candidate) {
-    if (candidate == null) {
-      _print('onCandidate: complete!');
-      return;
-    }
-    _print('onCandidate: ' + candidate.candidate);
-    _peerConnection.addCandidate(candidate);
-  }
-
-  void _onTrack(RTCTrackEvent event) {
-    _print('onTrack');
-    if (event.track.kind == 'video' && event.streams.isNotEmpty) {
-      _print('New stream: ' + event.streams[0].id);
-      _remoteRenderer.srcObject = event.streams[0];
-    }
-  }
-
-  void _onRenegotiationNeeded() {
-    _print('RenegotiationNeeded');
-  }
-
-  RTCDataChannelInit _dataChannelDict;
-  RTCDataChannel _dataChannel;
-
-  void _makeCall() async {
-    final mediaConstraints = <String, dynamic>{
-      'audio': true,
-      /*'video': {
-        'mandatory': {
-          'minWidth':
-              '1280', // Provide your own width, height and frame rate here
-          'minHeight': '720',
-          'minFrameRate': '30',
-        },
-        'facingMode': 'user',
-        'optional': [],
-      }*/
-    };
-
-    var configuration = <String, dynamic>{
-      'iceServers': [
-        {'url': 'stun:stun.l.google.com:19302'},
-      ],
-      'sdpSemantics': sdpSemantics
-    };
-
-    final offerSdpConstraints = <String, dynamic>{
-      'mandatory': {
-        'OfferToReceiveAudio': true,
-        'OfferToReceiveVideo': true,
-      },
-      'optional': [],
-      //'sdpSemantics': 'uinified-plan'
-    };
-
-    final loopbackConstraints = <String, dynamic>{
-      'mandatory': {},
-      'optional': [
-        {'DtlsSrtpKeyAgreement': true},
-      ],
-      //'sdpSemantics': 'uinified-plan'
-    };
-
-    if (_peerConnection != null) return;
-
-    _peerConnection =
-        await createPeerConnection(configuration, loopbackConstraints);
-
-    _peerConnection.onSignalingState = _onSignalingState;
-    _peerConnection.onIceGatheringState = _onIceGatheringState;
-    _peerConnection.onIceConnectionState = _onIceConnectionState;
-    _peerConnection.onConnectionState = _onPeerConnectionState;
-    _peerConnection.onAddStream = _onAddStream;
-    _peerConnection.onRemoveStream = _onRemoveStream;
-    _peerConnection.onIceCandidate = _onCandidate;
-    _peerConnection.onRenegotiationNeeded = _onRenegotiationNeeded;
-
-    _dataChannelDict = RTCDataChannelInit();
-    _dataChannelDict.id = 1;
-    _dataChannelDict.ordered = true;
-    _dataChannelDict.maxRetransmitTime = -1;
-    _dataChannelDict.maxRetransmits = -1;
-    _dataChannelDict.protocol = 'sctp';
-    _dataChannelDict.negotiated = false;
-
-    _dataChannel = await _peerConnection.createDataChannel(
-        'dataChannel', _dataChannelDict);
-
-    if (myContext.rtmt is RealtimeMessageTransportDataChannel) {
-      (myContext.rtmt as RealtimeMessageTransportDataChannel)
-          .setDataChannel(_dataChannel);
-      myContext.rtmt.send("channel", stringToBytes("text"));
-    } else {
-      _print("myContext.rtmt is not RealtimeMessageTransportDataChannel");
-    }
-
-    _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-    _localRenderer.srcObject = _localStream;
-
-    switch (sdpSemantics) {
-      case 'plan-b':
-        await _peerConnection.addStream(_localStream);
-        break;
-      case 'unified-plan':
-        _peerConnection.onTrack = _onTrack;
-        _localStream.getTracks().forEach((track) {
-          _peerConnection.addTrack(track, _localStream);
-        });
-        break;
-    }
-
-    var description = await _peerConnection.createOffer(offerSdpConstraints);
-    _print("description.sdp");
-    await _peerConnection.setLocalDescription(description);
-
-    //change for loopback.
-    final sdp = await getRemoteSdp(widget.room.id.toString(), description);
-    description.type = 'answer';
-    description.sdp = sdp.sdp;
-    await _peerConnection.setRemoteDescription(description);
-
-    /*var description = await _peerConnection.createOffer(offerSdpConstraints);
-      var sdp = description.sdp;
-      _print('sdp = $sdp');
-      await _peerConnection.setLocalDescription(description);
-      //change for loopback.
-      final sd = await getRemoteSdp(description);
-      description.type = 'answer';
-      description.sdp = sd.sdp;
-      await _peerConnection.setRemoteDescription(description);*/
-
-    /* Unfied-Plan replaceTrack
-      var stream = await MediaDevices.getDisplayMedia(mediaConstraints);
-      _localRenderer.srcObject = _localStream;
-      await transceiver.sender.replaceTrack(stream.getVideoTracks()[0]);
-      // do re-negotiation ....
-      */
-
-    //if (!mounted) return;
-
-    _timer = Timer.periodic(Duration(seconds: 1), handleStatsReport);
-
-    setState(() {
-      controller.inCalling = true;
-    });
-  }
-
-  void _hangUp() async {
-    try {
-      await _localStream.dispose();
-      await _peerConnection.close();
-      _peerConnection = null;
-      _localRenderer.srcObject = null;
-      _remoteRenderer.srcObject = null;
-    } catch (e) {
-      _print(e.toString());
-    }
-    setState(() {
-      controller.inCalling = false;
-    });
-    _timer.cancel();
-  }
-
-  void _sendDtmf() async {
-    var dtmfSender =
-        _peerConnection.createDtmfSender(_localStream.getAudioTracks()[0]);
-    await dtmfSender.insertDTMF('123#');
-  }
-
   @override
   Widget build(BuildContext context) {
     var widgets = <Widget>[
       /*Expanded(
         child: RTCVideoView(_localRenderer, mirror: true),
       ),*/
-      Expanded(
-        child: RTCVideoView(_remoteRenderer),
-      )
+      if (_remoteRenderers.length > 0)
+        Expanded(
+          child: RTCVideoView(_remoteRenderers[0]),
+        )
     ];
 
     return Stack(
       children: [
-        RTCVideoView(_remoteRenderer),
+        RTCVideoView(_localRenderer),
         /*Container(
           color: Colors.black,
           child: ListView.builder(
