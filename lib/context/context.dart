@@ -1,6 +1,7 @@
 import 'package:http/http.dart';
 import 'package:remotely_mobile/rtmt/rtmt.dart';
 import 'package:remotely_mobile/rtmt/rtmt_datachannel.dart';
+import 'package:remotely_mobile/rtmt/rtmt_websocket.dart';
 import 'package:remotely_mobile/service/auth_service.dart';
 import 'package:remotely_mobile/service/http_service.dart';
 import 'package:remotely_mobile/service/room_service.dart';
@@ -9,6 +10,10 @@ import 'package:remotely_mobile/store/jwt_store.dart';
 import 'package:remotely_mobile/store/mem_storeage.dart';
 import 'package:remotely_mobile/store/persistent_storeage.dart';
 import 'package:remotely_mobile/store/store.dart';
+
+const wsUrl = "ws://10.0.2.2:8080" + "/room/ws/";
+const endpoint = "10.0.2.2:8080";
+//const endpoint = "192.168.43.2:8080";
 
 class Context {
   Store jwtStore;
@@ -22,7 +27,6 @@ class Context {
 }
 
 Context createTestContext() {
-  const endpoint = "localhost:8080";
   final memStoreage = MemStoreage();
   final jwtStore = JWTStore(memStoreage);
   final httpService = HttpServiceImpl(
@@ -39,8 +43,6 @@ Context createTestContext() {
 }
 
 Future<Context> createContext(Function(Response) onUnauthorized) async {
-  const endpoint = "10.0.2.2:8080";
-  //const endpoint = "192.168.43.2:8080";
   final persistentStoreage = PersistentStoreage();
   final jwtStore = JWTStore(persistentStoreage);
   final jwt = await jwtStore.get();
@@ -61,7 +63,7 @@ Future<Context> createContext(Function(Response) onUnauthorized) async {
 
   final authService = AuthServiceImpl(httpService, jwtStore);
   final roomService = RoomServiceImpl(httpService);
-  final rtmt = RealtimeMessageTransportDataChannel();
+  final rtmt = RealtimeMessageTransportWS(wsUrl);
   return Context(
       httpService, jwtStore, authService, jwt != null, roomService, rtmt);
 }
