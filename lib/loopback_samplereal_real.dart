@@ -16,7 +16,11 @@ class WebRTCController {
 
   void makeCall() {
     _checkStateIsNull();
-    state._makeCall();
+    try {
+      state._makeCall();
+    } catch (e) {
+      print(e);
+    }
   }
 
   void hangUp() {

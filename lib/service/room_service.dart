@@ -33,7 +33,7 @@ class RoomServiceImpl extends RoomService {
 
   @override
   Future<List<Room>> listRooms() async {
-    final list = List<Room>();
+    final list = <Room>[];
     try {
       final response = await httpService.post(listRoomsRoute, {});
       if (response.statusCode < 400) {
