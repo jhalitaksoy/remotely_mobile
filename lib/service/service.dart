@@ -29,4 +29,6 @@ abstract class RoomService {
   Future<Room> getRoomById(int id);
 
   Future<List<ChatMessage>> getRoomChatMessagesById(int id);
+
+  Future joinRoom(int id);
 }

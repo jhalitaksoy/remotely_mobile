@@ -10,6 +10,7 @@ class RoomServiceImpl extends RoomService {
   final listRoomsRoute = "room/listRooms";
   final getRoomRoute = "room/get";
   final chatRoute = "room/chat";
+  final joinRoute = "room/join";
 
   RoomServiceImpl(HttpService httpService) : super(httpService);
 
@@ -96,6 +97,27 @@ class RoomServiceImpl extends RoomService {
           }
         }
         return messages;
+      } else {
+        //todo check 404
+        return Future.error(
+            "Internal Error : Status Code" + response.statusCode.toString());
+      }
+    } catch (e) {
+      print(e);
+      if (e is SocketException) {
+        Future.error("Internet connection problem!");
+      }
+      return Future.error("Internal Error : " + e.toString());
+    }
+  }
+
+  @override
+  Future joinRoom(int roomID) async {
+    try {
+      final response =
+          await httpService.post(joinRoute + "/" + roomID.toString(), {});
+      if (response.statusCode < 400) {
+        return;
       } else {
         //todo check 404
         return Future.error(
