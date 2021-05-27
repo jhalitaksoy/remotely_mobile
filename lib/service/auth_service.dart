@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:remotely_mobile/models/auth.dart';
@@ -18,7 +19,8 @@ class AuthServiceImpl extends AuthService {
       final response =
           await httpService.post(loginRoute, loginParameters.toJson());
       if (response.statusCode < 400) {
-        jwtStore.set(response.body);
+        final loginResult = LoginResult.fromJson(jsonDecode(response.body));
+        jwtStore.set(loginResult.jwtToken);
         return true;
       } else if (response.statusCode == 409) {
         return false;

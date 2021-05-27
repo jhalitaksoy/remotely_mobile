@@ -35,3 +35,25 @@ class LoginParameters {
     return data;
   }
 }
+
+class LoginResult {
+  int id;
+  String name;
+  String jwtToken;
+
+  LoginResult({this.id, this.name, this.jwtToken});
+
+  LoginResult.fromJson(Map<String, dynamic> json) {
+    id = json['id'];
+    name = json['name'];
+    jwtToken = json['jwt_token'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['id'] = this.id;
+    data['name'] = this.name;
+    data['jwt_token'] = this.jwtToken;
+    return data;
+  }
+}
