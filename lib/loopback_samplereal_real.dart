@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:remotely_mobile/main.dart';
 import 'package:remotely_mobile/rtmt/message_encode_decode.dart';
-import 'package:remotely_mobile/rtmt/rtmt_datachannel.dart';
-import 'package:remotely_mobile/util.dart';
 
 import 'models/room.dart';
 
@@ -64,6 +62,8 @@ class _MyAppState extends State<LoopBackSample> {
   WebRTCController controller;
 
   final _localRenderer = RTCVideoRenderer();
+  RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+
   List _remoteRenderers = [];
 
   RTCPeerConnection _peerConnection;
@@ -93,6 +93,8 @@ class _MyAppState extends State<LoopBackSample> {
       await _peerConnection.addTrack(track, localStream);
     });
 
+    _peerConnection.addTransceiver(kind: RTCRtpMediaType.RTCRtpMediaTypeVideo);
+
     _peerConnection.onIceCandidate = (candidate) async {
       if (candidate == null) {
         return;
@@ -107,13 +109,29 @@ class _MyAppState extends State<LoopBackSample> {
       myContext.rtmt.send(ChannelICE, stringToBytes(json));
     };
 
+    myContext.rtmt.listen(ChannelICE, (message) async {
+      final jsonText = bytesToString(message);
+      final json = jsonDecode(jsonText);
+
+      print(json['candidate']);
+      final candidate = json['candidate'];
+      if (candidate != null) {
+        _peerConnection.addCandidate(RTCIceCandidate(json['candidate'], "", 0));
+      }
+    });
+
     _peerConnection.onTrack = (event) async {
-      if (event.track.kind == 'video' && event.streams.isNotEmpty) {
+      final boolean = event.track.kind == 'video' && event.streams.isNotEmpty;
+      print(boolean);
+      print(event.track.kind);
+      if (boolean) {
+        print("inside");
         var renderer = RTCVideoRenderer();
         await renderer.initialize();
         renderer.srcObject = event.streams[0];
 
         setState(() {
+          _remoteRenderer = renderer;
           _remoteRenderers.add(renderer);
         });
       }
@@ -165,63 +183,22 @@ class _MyAppState extends State<LoopBackSample> {
 
       myContext.rtmt.send(ChannelSDPAnswer, stringToBytes(json));
     });
-    myContext.rtmt.send(ChannelReady, stringToBytes("ready"));
+    //myContext.rtmt.send(ChannelReady, stringToBytes("ready"));
 
-    myContext.rtmt.listen(ChannelICE, (message) async {
-      final jsonText = bytesToString(message);
-      final json = jsonDecode(jsonText);
-
-      _peerConnection.addCandidate(RTCIceCandidate(json['candidate'], null, 0));
+    RTCSessionDescription offer = await _peerConnection.createOffer({});
+    await _peerConnection.setLocalDescription(offer);
+    final json = jsonEncode({
+      "sdp": offer.sdp,
+      "type": offer.type,
     });
-  }
-
-  void _print(Object object) {
-    print(object);
-  }
-
-  void _onSignalingState(RTCSignalingState state) {
-    _print(state);
-  }
-
-  void _onIceGatheringState(RTCIceGatheringState state) {
-    _print(state);
-  }
-
-  void _onIceConnectionState(RTCIceConnectionState state) {
-    _print(state);
-  }
-
-  void _onPeerConnectionState(RTCPeerConnectionState state) {
-    _print(state);
+    myContext.rtmt.send(ChannelSDPOffer, stringToBytes(json));
   }
 
   @override
   Widget build(BuildContext context) {
-    var widgets = <Widget>[
-      /*Expanded(
-        child: RTCVideoView(_localRenderer, mirror: true),
-      ),*/
-      if (_remoteRenderers.length > 0)
-        Expanded(
-          child: RTCVideoView(_remoteRenderers[0]),
-        )
-    ];
-
     return Stack(
       children: [
-        RTCVideoView(_localRenderer),
-        /*Container(
-          color: Colors.black,
-          child: ListView.builder(
-            itemCount: logs.length,
-            itemBuilder: (context, index) {
-              return Text(
-                logs[index],
-                style: TextStyle(color: Colors.white),
-              );
-            },
-          ),
-        ),*/
+        RTCVideoView(_remoteRenderer),
       ],
     );
   }
