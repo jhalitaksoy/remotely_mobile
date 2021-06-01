@@ -1,16 +1,18 @@
 # remotely_mobile
 
-A new Flutter project.
+Remotely Mobile - WebRTC based online meeting mobile app.
 
-## Getting Started
+Still Under Development
 
-This project is a starting point for a Flutter application.
+Using [flutter_webrtc](https://pub.dev/packages/flutter_webrtc)
 
-A few resources to get you started if this is your first Flutter project:
+[Live Web Application (Not Flutter) ](https://remotely-sigma.vercel.app/)
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+[Backend](https://github.com/jhalitaksoy/remotely-backend)
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+[Frontend](https://github.com/jhalitaksoy/remotely-frontend)
+
+## How to run
+```bash 
+flutter pub get 
+flutter run
